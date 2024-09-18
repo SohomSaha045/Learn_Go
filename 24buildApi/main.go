@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 type Course struct {
 	CourseId    string  `json:"courseid"`
 	CourseName  string  `json:"coursename"`
-	CrousePrice int     `json:"price"`
+	CoursePrice int     `json:"-"`
 	Author      *Author `json:"author"`
 }
 type Author struct {
@@ -74,12 +75,19 @@ func createCourse(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode("Please send some data")
 		return
 	}
+
 	// empty data - {}
 	var course Course
 	_ = json.NewDecoder(r.Body).Decode(&course)
 	if IsEmpty(&course) {
 		json.NewEncoder(w).Encode("No data found")
 		return
+	}
+	for _, c := range courses {
+		if c.CourseName == course.CourseName {
+			json.NewEncoder(w).Encode("Duplicate data found")
+			return
+		}
 	}
 	//generate  uniqueID, string
 	//append course into courses
@@ -134,4 +142,35 @@ func deleteCourse(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	fmt.Println("Build an API")
+
+	r := mux.NewRouter()
+	//seeding of data
+	courses = append(courses, Course{
+		CourseId:    "7",
+		CourseName:  "React JS",
+		CoursePrice: 1280,
+		Author: &Author{
+			Fullname: "Sohom Saha",
+			Website:  "Udemy.com",
+		},
+	})
+	courses = append(courses, Course{
+		CourseId:    "10",
+		CourseName:  "MERN STACK",
+		CoursePrice: 9990,
+		Author: &Author{
+			Fullname: "S Saha",
+			Website:  "go.dev",
+		},
+	})
+
+	r.HandleFunc("/", serveHome).Methods("GET")
+	r.HandleFunc("/courses", getAll).Methods("GET")
+	r.HandleFunc("/course/{id}", getOneCourse).Methods("GET")
+	r.HandleFunc("/course", createCourse).Methods("POST")
+	r.HandleFunc("/course/{id}", updateCourse).Methods("PUT")
+	r.HandleFunc("/course/{id}", deleteCourse).Methods("DELETE")
+
+	log.Fatal(http.ListenAndServe(":8080", r))
+
 }
